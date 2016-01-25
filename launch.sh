@@ -1,1 +1,1 @@
-`amazon_kclpy_helper.py --print_command --java \`which java\` --properties app.properties`
+`amazon_kclpy_helper.py --print_command --java /usr/bin/java --properties app.properties`

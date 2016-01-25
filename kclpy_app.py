@@ -1,4 +1,4 @@
-#!env python
+#!/usr/bin/env python3
 '''
 Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
