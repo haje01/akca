@@ -1,6 +1,6 @@
 # akca
 
-AWS Kinesis Consumer Application
+Another Kinesis Consumer Application
 
 ## Prerequisite
 
@@ -24,16 +24,20 @@ http://docs.aws.amazon.com/kinesis/latest/dev/learning-kinesis-module-one-iam.ht
 	sudo pip3 install awscli
 	aws configure
 
-Then, enter IAM Access Key & Secret Access Key. The IAM user should have appropriate permissions to access AWS resources.
+Then, enter IAM Access Key & Secret Access Key. The IAM user should have appropriate permissions to access AWS resources. 
+
+### git
+
+    sudo apt-get install git -y
 
 ### Amazon Kinesis Client Library for Python
 
 Install [Amazon Kinesis Client Library for Python](https://github.com/awslabs/amazon-kinesis-client-python)
 
-    git clone https://github.com/awslabs/amazon-kinesis-client-python.git
+    git clone https://github.com/haje01/amazon-kinesis-client-python.git
     cd amazon-kinesis-client-python
     python3 setup.py download_jars
-    sudo python3 setup.py install -y
+    sudo python3 setup.py install
 
 ## Install & Setup
 
@@ -43,5 +47,9 @@ Install [Amazon Kinesis Client Library for Python](https://github.com/awslabs/am
     cp akca/sample.properties app.properties
     vi app.properties
 
-Edit `app.properties` as your needs.
+In `app.properties`, fill in `streamName`, `regionName` and absolute path of `kclpy_app.py` for `excutableName`.
 
+
+## Launch
+
+    ./launch.sh
