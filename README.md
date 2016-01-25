@@ -4,9 +4,9 @@ Another Kinesis Consumer Application
 
 ## Prerequisite
 
-### Create IAM User
+### IAM User
 
-Create an appropriate IAM User for Kinesis Consumer. ( refer
+Prepare an appropriate AWS IAM User for Kinesis Consumer. ( refer
 http://docs.aws.amazon.com/kinesis/latest/dev/learning-kinesis-module-one-iam.html )
 
 ### Python3
