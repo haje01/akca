@@ -1,6 +1,6 @@
 # akca
 
-AWS Kinesis Consumer Application
+Another Kinesis Consumer Application
 
 ## Setup
 
@@ -10,6 +10,8 @@ Create an appropriate IAM User for Kinesis Consumer. ( refer
 http://docs.aws.amazon.com/kinesis/latest/dev/learning-kinesis-module-one-iam.html )
 
 ### Python3
+
+    sudo apt-get install python3 -y
 
 ### pip3 
 
@@ -24,14 +26,17 @@ http://docs.aws.amazon.com/kinesis/latest/dev/learning-kinesis-module-one-iam.ht
 	sudo pip3 install awscli
 	aws configure
 
-Then, enter IAM Access Key & Secret Access Key. The IAM user should have appropriate permissions to access AWS resources. 
+Enter previous IAM User Access Key & Secret Access Key.
 
-### git & source code
+### akca code
+
+Install git
 
     sudo apt-get install git -y
 
-Clone akca source
+Clone akca code
 
+    cd
     git clone https://github.com/haje01/akca.git
 
 ### Amazon Kinesis Client Library for Python
@@ -67,22 +72,20 @@ Edit `/etc/td-agent/td-agent.conf` as your need, then start Fluentd service
     sudo td-agent-gem install fluent-plugin-s3
 
 
-## Setup
+### Config KCL App
 
-    cd
-    git clone https://github.com/haje01/akca.git
     cd akca
-    cp akca/sample.properties app.properties
+    cp akca/files/sample.properties app.properties
     vi app.properties
 
 In `app.properties`, fill in `streamName`, `regionName` and absolute path of `kclpy_app.py` for `excutableName`.
 
 Make Log Directory
 
-    sudo mkdir -p /logdata/${SERVICE_NAME}
+    sudo mkdir -p /logdata
     sudo chown -R td-agent:td-agent /logdata
 
-## Launch
+## Run
 
 ### Dev Launch
 
@@ -102,12 +105,20 @@ Edit `/etc/supervisor/conf.d/akca.conf` as your need, then start Supervisord.
 
     sudo service supervisor start
 
-#### Service Monitoring
+### Monitoring
     
-Check Supervisor log 
+To monitor supervisor log 
 
-    sudo tail -f /var/log/supervisor/supervisord.log
+    tail -f /var/log/supervisor/supervisord.log
 
-Check akca log
+To monitor akca(KCL) log
 
     tail -f /var/log/supervisor/akca.log
+
+To monitor Fluentd log
+
+    tail -f /var/log/td-agent/td-agent.log
+
+To monitor Supervisord subprocesses 
+
+    sudo supervisorctl status
