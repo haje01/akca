@@ -30,7 +30,7 @@ class RecordProcessor(kcl.RecordProcessorBase):
     def __init__(self):
         self.SLEEP_SECONDS = 5
         self.CHECKPOINT_RETRIES = 5
-        self.CHECKPOINT_FREQ_SECONDS = 60
+        self.CHECKPOINT_FREQ_SECONDS = 10
 
     def initialize(self, shard_id):
         '''
@@ -109,10 +109,13 @@ class RecordProcessor(kcl.RecordProcessorBase):
         ####################################
         # Insert your processing logic here
         ####################################
-        self.evt.Event('data', {
-            'seq': str(sequence_number),
-            'data': data
-        })
+        try:
+            jd = json.loads(data.decode('utf8'))
+            jd['_seq'] = str(sequence_number)
+            jd['_shd'] = self.shard_id
+            self.evt.Event('data', jd)
+        except Exception as e:
+            self.evt.Event('log.error', {'msg': str(e), 'data': data})
         return
 
     def process_records(self, records, checkpointer):
