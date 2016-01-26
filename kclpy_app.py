@@ -15,7 +15,9 @@ permissions and limitations under the License.
 '''
 from __future__ import print_function
 import sys, time, json, base64
+
 from amazon_kclpy import kcl
+
 
 class RecordProcessor(kcl.RecordProcessorBase):
     '''
@@ -40,6 +42,12 @@ class RecordProcessor(kcl.RecordProcessorBase):
         self.largest_seq = None
         self.last_checkpoint_time = time.time()
 
+        self.shard_id = shard_id.replace('shardId', 'sid')
+        from fluent import sender, event
+        sender.setup('akca.{}'.format(self.shard_id))
+        event.Event('log.info', {'msg': 'processor initialized'})
+        self.evt = event
+
     def checkpoint(self, checkpointer, sequence_number=None):
         '''
         Checkpoints with retries on retryable exceptions.
@@ -53,6 +61,7 @@ class RecordProcessor(kcl.RecordProcessorBase):
         for n in range(0, self.CHECKPOINT_RETRIES):
             try:
                 checkpointer.checkpoint(sequence_number)
+                self.evt.Event('log.info', { 'msg':'checkpoint success' })
                 return
             except kcl.CheckpointError as e:
                 if 'ShutdownException' == e.value:
@@ -60,7 +69,9 @@ class RecordProcessor(kcl.RecordProcessorBase):
                     A ShutdownException indicates that this record processor should be shutdown. This is due to
                     some failover event, e.g. another MultiLangDaemon has taken the lease for this shard.
                     '''
-                    print('Encountered shutdown execption, skipping checkpoint')
+                    self.evt.Event('log.error', {
+                        'msg': 'Encountered shutdown execption, skipping checkpoint'
+                    })
                     return
                 elif 'ThrottlingException' == e.value:
                     '''
@@ -68,14 +79,18 @@ class RecordProcessor(kcl.RecordProcessorBase):
                     dynamo writes. We will sleep temporarily to let it recover.
                     '''
                     if self.CHECKPOINT_RETRIES - 1 == n:
-                        sys.stderr.write('Failed to checkpoint after {n} attempts, giving up.\n'.format(n=n))
+                        self.evt.Event('log.error', {
+                            'msg': 'Failed to checkpoint after {n} attempts, giving up.\n'.format(n=n)
+                        })
                         return
                     else:
-                        print('Was throttled while checkpointing, will attempt again in {s} seconds'.format(s=self.SLEEP_SECONDS))
+                        self.evt.Event('log.error', {
+                            'msg':'Was throttled while checkpointing, will attempt again in {s} seconds'.format(s=self.SLEEP_SECONDS)
+                        })
                 elif 'InvalidStateException' == e.value:
-                    sys.stderr.write('MultiLangDaemon reported an invalid state while checkpointing.\n')
+                    self.evt.Event('log.error', { 'msg': 'MultiLangDaemon reported an invalid state while checkpointing.\n'})
                 else: # Some other error
-                    sys.stderr.write('Encountered an error while checkpointing, error was {e}.\n'.format(e=e))
+                    self.evt.Event('Encountered an error while checkpointing, error was {e}.\n'.format(e=e))
             time.sleep(self.SLEEP_SECONDS)
 
     def process_record(self, data, partition_key, sequence_number):
@@ -94,6 +109,10 @@ class RecordProcessor(kcl.RecordProcessorBase):
         ####################################
         # Insert your processing logic here
         ####################################
+        self.evt.Event('data', {
+            'seq': str(sequence_number),
+            'data': data
+        })
         return
 
     def process_records(self, records, checkpointer):
@@ -111,6 +130,9 @@ class RecordProcessor(kcl.RecordProcessorBase):
         :param checkpointer: A checkpointer which accepts a sequence number or no parameters.
         '''
         try:
+            self.evt.Event('log.info', {
+                'msg':'processing {} records'.format(len(records))
+            })
             for record in records:
                 # record data is base64 encoded, so we need to decode it first
                 data = base64.b64decode(record.get('data'))
@@ -120,6 +142,10 @@ class RecordProcessor(kcl.RecordProcessorBase):
                 self.process_record(data, key, seq)
                 if self.largest_seq == None or seq > self.largest_seq:
                     self.largest_seq = seq
+
+            self.evt.Event('log.info', {
+                'msg':'processing done'
+            })
             # Checkpoints every 60 seconds
             if time.time() - self.last_checkpoint_time > self.CHECKPOINT_FREQ_SECONDS:
                 self.checkpoint(checkpointer, str(self.largest_seq))
@@ -142,15 +168,20 @@ class RecordProcessor(kcl.RecordProcessorBase):
             shard so that this processor will be shutdown and new processor(s) will be created to for the child(ren) of
             this shard.
         '''
+        self.evt.Event('log.critical', { 'msg': 'shutdown for {}'.format(reason)})
         try:
             if reason == 'TERMINATE':
                 # Checkpointing with no parameter will checkpoint at the
                 # largest sequence number reached by this processor on this
                 # shard id
-                print('Was told to terminate, will attempt to checkpoint.')
+                self.evt.Event('log.critical', {
+                    'msg': 'Was told to terminate, will attempt to checkpoint.'
+                })
                 self.checkpoint(checkpointer, None)
             else: # reason == 'ZOMBIE'
-                print('Shutting down due to failover. Will not checkpoint.')
+                self.evt.Event('log.critical', {
+                    'msg': 'Shutting down due to failover. Will not checkpoint.'
+                })
         except:
             pass
 
