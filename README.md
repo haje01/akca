@@ -54,11 +54,16 @@ Install Fluentd for Ubuntu 14.04(Trusty)
 
     curl -L https://toolbelt.treasuredata.com/sh/install-ubuntu-trusty-td-agent2.sh | sh
 
+Make log directory beforehand.
+
+    sudo mkdir -p /logdata
+    sudo chown -R td-agent:td-agent /logdata
+
 Copy Fluentd config file.
 
     sudo cp ~/akca/files/td-agent.conf /etc/td-agent/td-agent.conf
 
-Edit `/etc/td-agent/td-agent.conf` as your need, then start Fluentd service
+Edit `/etc/td-agent/td-agent.conf` as your need, then restart Fluentd service
 
     sudo /etc/init.d/td-agent restart
 
@@ -71,19 +76,13 @@ Edit `/etc/td-agent/td-agent.conf` as your need, then start Fluentd service
 
     sudo td-agent-gem install fluent-plugin-s3
 
-
 ### Config KCL App
 
     cd akca
-    cp akca/files/sample.properties app.properties
+    cp files/sample.properties app.properties
     vi app.properties
 
 In `app.properties`, fill in `streamName`, `regionName` and absolute path of `kclpy_app.py` for `excutableName`.
-
-Make Log Directory
-
-    sudo mkdir -p /logdata
-    sudo chown -R td-agent:td-agent /logdata
 
 ## Run
 
