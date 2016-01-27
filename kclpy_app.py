@@ -115,6 +115,8 @@ class RecordProcessor(kcl.RecordProcessorBase):
             jd['_shd'] = self.shard_id
             self.evt.Event('data', jd)
         except Exception as e:
+            # if data has illegal format, send it as is.
+            self.evt.Event('data', data)
             self.evt.Event('log.error', {'msg': str(e), 'data': data})
         return
 
