@@ -141,7 +141,7 @@ class RecordProcessor(kcl.RecordProcessorBase):
         # Insert your processing logic here
         ####################################
         try:
-            data = json.dumps(data.decode('utf8'))
+            data = data.decode('utf8')
             sd = json.loads(data)
             sd['_seq'] = str(sequence_number)
             sd['_shd'] = self.shard_id
