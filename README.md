@@ -48,6 +48,13 @@ Install [Amazon Kinesis Client Library for Python](https://github.com/awslabs/am
     python3 setup.py download_jars
     sudo python3 setup.py install
 
+### rtail
+
+To monitor logs you need to install rtail
+
+    sudo apt-get install npm -y
+    sudo npm install -g rtail
+
 ### Fluentd
 
 Install Fluentd for Ubuntu 14.04(Trusty)
@@ -70,7 +77,11 @@ Edit `/etc/td-agent/td-agent.conf` as your need, then restart Fluentd service
 
 ### Python Fluentd logger
 
-    sudo pip3 install fluent-logger
+Install forked Python Fluentd logger. This has a small change that raises exception when `sender` retry reaches `bufmax` in order to ensure Kinesis records are properly sent to Fluentd. 
+
+    git clone https://github.com/haje01/fluent-logger-python.git
+    cd fluent-logger-python
+    sudo pip3 install -e .
     
 ### Fluent Amazon S3 Output Plugin
 
@@ -106,18 +117,10 @@ Edit `/etc/supervisor/conf.d/akca.conf` as your need, then start Supervisord.
 
 ### Monitoring
     
-To monitor supervisor log 
+You can monitor various logs (Kinesis Consumer, Supervisor and Fluent) by `rtail`. Visit:
 
-    tail -f /var/log/supervisor/supervisord.log
+http://[RTAIL_WEB_HOST]:[RTAIL_WEB_PORT]
 
-To monitor akca(KCL) log
+---
 
-    tail -f /var/log/supervisor/akca.log
-
-To monitor Fluentd log
-
-    tail -f /var/log/td-agent/td-agent.log
-
-To monitor Supervisord subprocesses 
-
-    sudo supervisorctl status
+Have Fun!
