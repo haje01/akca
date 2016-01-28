@@ -18,6 +18,15 @@ import sys, time, json, base64
 import logging
 
 from amazon_kclpy import kcl
+from fluent.sender import SEND_FAIL_SEC
+
+# Send fail error should raise before checkpoint
+CHECKPOINT_FREQ_SEC = SEND_FAIL_SEC * 3
+MAX_SEND_ERROR = 10
+
+
+class StopProcessing(Exception):
+    pass
 
 
 class RecordProcessor(kcl.RecordProcessorBase):
@@ -31,7 +40,6 @@ class RecordProcessor(kcl.RecordProcessorBase):
     def __init__(self):
         self.SLEEP_SECONDS = 5
         self.CHECKPOINT_RETRIES = 5
-        self.CHECKPOINT_FREQ_SECONDS = 10
 
     def initialize(self, shard_id):
         '''
@@ -41,6 +49,7 @@ class RecordProcessor(kcl.RecordProcessorBase):
         :param shard_id: The shard id that this processor is going to be working on.
         '''
         self.largest_seq = None
+        self.send_record_errcnt = 0
         self.last_checkpoint_time = time.time()
         self.shard_id = shard_id.replace('shardId', 'sid')
 
@@ -74,7 +83,7 @@ class RecordProcessor(kcl.RecordProcessorBase):
         try:
             self.evt.Event(tag, {'msg': msg})
         except Exception as e:
-            self._logging.error("Fluent Send Error: {}".format(e))
+            self._logging.error("Send Error: {}".format(e))
 
     def checkpoint(self, checkpointer, sequence_number=None):
         '''
@@ -89,7 +98,7 @@ class RecordProcessor(kcl.RecordProcessorBase):
         for n in range(0, self.CHECKPOINT_RETRIES):
             try:
                 checkpointer.checkpoint(sequence_number)
-                self.log_info('checkpoint success')
+                self.log_info('checkpoint success: {}'.format(sequence_number))
                 return
             except kcl.CheckpointError as e:
                 if 'ShutdownException' == e.value:
@@ -132,7 +141,8 @@ class RecordProcessor(kcl.RecordProcessorBase):
         # Insert your processing logic here
         ####################################
         try:
-            sd = json.loads(data.decode('utf8'))
+            data = json.dumps(data.decode('utf8'))
+            sd = json.loads(data)
             sd['_seq'] = str(sequence_number)
             sd['_shd'] = self.shard_id
         except Exception as e:
@@ -140,8 +150,11 @@ class RecordProcessor(kcl.RecordProcessorBase):
             # if data has illegal format, send it as is.
             sd = data
 
-        self.send('data', sd)
-        return
+        try:
+            self.evt.Event('data', sd)
+        except Exception as e:
+            return False
+        return True
 
     def process_records(self, records, checkpointer):
         '''
@@ -165,17 +178,30 @@ class RecordProcessor(kcl.RecordProcessorBase):
                 seq = record.get('sequenceNumber')
                 seq = int(seq)
                 key = record.get('partitionKey')
-                self.process_record(data, key, seq)
+                res = self.process_record(data, key, seq)
+                if not res:
+                    # sleep for a while
+                    self.send_record_errcnt += 1
+                    time.sleep(1)
+                    if self.send_record_errcnt > MAX_SEND_ERROR:
+                        raise StopProcessing()
+                else:
+                    self.send_record_errcnt = 0
+
                 if self.largest_seq == None or seq > self.largest_seq:
                     self.largest_seq = seq
 
             self.log_info('processing done')
+            self.send_record_errcnt = 0
             # Checkpoints every 60 seconds
-            if time.time() - self.last_checkpoint_time > self.CHECKPOINT_FREQ_SECONDS:
+            if time.time() - self.last_checkpoint_time > CHECKPOINT_FREQ_SEC:
                 self.checkpoint(checkpointer, str(self.largest_seq))
                 self.last_checkpoint_time = time.time()
+        except StopProcessing:
+            self._logging.critical("Over Max Error ({} errors). Stop Processing...".format(self.send_record_errcnt))
+            time.sleep(60*60*24)  # Hopefully Killed by being Zombie
         except Exception as e:
-            sys.stderr.write("======== Processing Error ========")
+            sys.stderr.write("======== Processing Error ========\n")
             sys.stderr.write("Encountered an exception while processing records. Exception was {e}\n".format(e=e))
             self.log_error('Processing Error: {}'.format(e))
 
