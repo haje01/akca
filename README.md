@@ -121,6 +121,17 @@ You can monitor various logs (Kinesis Consumer, Supervisor and Fluent) by `rtail
 
 http://[RTAIL_WEB_HOST]:[RTAIL_WEB_PORT]
 
+### Maintenance
+
+When you stop service for maintenance, please remember to stop supervisor before fluentd(td-agent), otherwise you might lose some of your data.
+
+    sudo service supervisor stop
+
+then
+
+    sudo /etd/init.d/td-agent stop
+
+
 ---
 
 Have Fun!
