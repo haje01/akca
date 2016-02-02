@@ -20,7 +20,7 @@ import logging
 from amazon_kclpy import kcl
 from fluent.sender import SEND_FAIL_SEC
 
-# Send fail error should raise before checkpoint
+# Send fail error should be raised before checkpoint
 CHECKPOINT_FREQ_SEC = SEND_FAIL_SEC * 3
 MAX_SEND_ERROR = 10
 
